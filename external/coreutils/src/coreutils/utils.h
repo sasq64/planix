@@ -1,6 +1,7 @@
 #pragma once
 
 #include "file.h"
+#include "log.h"
 #include "path.h"
 #include "split.h"
 
@@ -20,7 +21,7 @@
 #include <vector>
 
 namespace utils {
-
+/*
 template <class T, template <typename DUMMY> class CONTAINER>
 auto find(CONTAINER<T> const& haystack, T const& needle)
 {
@@ -32,7 +33,7 @@ auto find_if(CONTAINER<T> const& haystack, FX const& fn)
 {
     return std::find_if(begin(haystack), end(haystack), fn);
 }
-
+*/
 template <typename ITERATOR>
 std::string join(ITERATOR begin, ITERATOR end,
                  const std::string& separator = ", ")
@@ -48,6 +49,12 @@ std::string join(ITERATOR begin, ITERATOR end,
         ss << *begin++;
     }
     return ss.str();
+}
+
+template <typename C>
+std::string join(C& c, const std::string& separator = ", ")
+{
+    return join(std::cbegin(c), std::cend(c), separator);
 }
 
 inline std::string spaces(int n)
@@ -67,15 +74,19 @@ inline std::string indent(std::string const& text, int n)
 
 inline bool endsWith(const std::string& name, const std::string& ext)
 {
-    auto pos = name.rfind(ext);
-    return (pos != std::string::npos && pos == name.length() - ext.length());
+    if (ext.empty()) return true;
+
+    // avoid negative surprise in compare
+    if (name.size() < ext.size()) return false;
+
+    return name.compare(name.size() - ext.size(), ext.size(), ext) == 0;
 }
 
 inline bool startsWith(const std::string& name, const std::string& pref)
 {
-    if (pref.empty())
-        return true;
-    return name.find(pref) == 0;
+    if (pref.empty()) return true;
+
+    return name.compare(0, pref.size(), pref) == 0;
 }
 
 inline void quote(std::string& s)
@@ -104,34 +115,44 @@ inline bool isLower(std::string const& s)
                        static_cast<bool (*)(char const&)>(&isLower));
 }
 
-inline std::string getUniqueKey(std::string const& fileName)
+inline std::string getUniqueKey()
 {
     std::string result;
     const char* letters =
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@_";
-    utils::path p{fileName};
-    if (utils::exists(p)) {
-        result = utils::File{p}.readAll();
-    } else {
-        char key[33];
-        char* out = key;
-        std::mt19937 gen{std::random_device{}()};
-        std::uniform_int_distribution<size_t> dist{0, strlen(letters)};
-        for (int i = 0; i < 32; i++) {
-            *out++ = letters[dist(gen)];
-        }
-        *out = 0;
-        result = key;
-        utils::File f{p, utils::File::Mode::Write};
-        f.writeString(result);
+    char key[33];
+    char* out = key;
+    std::mt19937 gen{std::random_device{}()};
+    std::uniform_int_distribution<size_t> dist{0, strlen(letters) - 1};
+    for (int i = 0; i < 32; i++) {
+        *out++ = letters[dist(gen)];
     }
+    *out = 0;
+    result = key;
     return result;
 }
 
-inline uint64_t currentTime()
+inline std::string getUniqueKey(utils::path const& p)
+{
+    std::string result;
+    if (utils::exists(p)) {
+        result = utils::File{p}.readAll();
+        // LOGI("Read '{}' from {}", result, p.string());
+        if (result.length() >= 32) {
+            return result;
+        }
+    }
+    result = getUniqueKey();
+
+    utils::File f{p, utils::File::Mode::Write};
+    f.writeString(result);
+    return result;
+}
+
+inline int64_t currentTime()
 {
     auto t = std::chrono::system_clock::now();
-    return static_cast<uint64_t>(std::chrono::system_clock::to_time_t(t));
+    return static_cast<int64_t>(std::chrono::system_clock::to_time_t(t));
 }
 
 inline std::string getHomeDir()
@@ -158,4 +179,74 @@ inline std::string getHomeDir()
     return homeDir;
 }
 
+inline bool to_num(const char* start_ptr, const char* end_ptr, double& res)
+{
+    using namespace std::string_literals;
+    char* err_ptr;
+    std::string s{start_ptr, static_cast<size_t>(end_ptr - start_ptr)};
+    res = std::strtod(s.c_str(), &err_ptr);
+    return (err_ptr != s.c_str());
+}
+
+inline bool to_num(const char* start_ptr, const char* end_ptr, uint16_t& res)
+{
+    using namespace std::string_literals;
+    char* err_ptr;
+    std::string s{start_ptr, static_cast<size_t>(end_ptr - start_ptr)};
+    auto long_res = std::strtol(s.c_str(), &err_ptr, 0);
+    if (long_res > std::numeric_limits<uint16_t>::max() ||
+        long_res < std::numeric_limits<uint16_t>::min())
+        return false;
+
+    res = static_cast<uint16_t>(long_res);
+
+    return (err_ptr != s.c_str());
+}
+
+inline bool to_num(const char* start_ptr, const char* end_ptr, int64_t& res)
+{
+    using namespace std::string_literals;
+    char* err_ptr;
+    std::string s{start_ptr, static_cast<size_t>(end_ptr - start_ptr)};
+    res = std::strtoll(s.c_str(), &err_ptr, 0);
+    return (err_ptr != s.c_str());
+}
+
+template <int BASE = 0>
+inline bool to_num(const char* start_ptr, const char* end_ptr, int& res)
+{
+    using namespace std::string_literals;
+    char* err_ptr;
+    std::string s{start_ptr, static_cast<size_t>(end_ptr - start_ptr)};
+    res = static_cast<int>(std::strtol(s.c_str(), &err_ptr, BASE));
+    return (err_ptr != s.c_str());
+}
+
+template <typename Numeric = int64_t, typename Str>
+inline bool to_num(Str str, Numeric* target)
+{
+    return to_num(str.data(), str.data() + str.size(), *target);
+}
+
+template <typename Numeric = int64_t, typename Str>
+inline Numeric to_num(Str str, Numeric const& def)
+{
+    Numeric res;
+    if (!to_num(str.data(), str.data() + str.size(), res)) {
+        return def;
+    }
+    return res;
+}
+
+template <typename Numeric = int64_t, typename Str>
+inline Numeric to_num(Str str)
+{
+    using namespace std::string_literals;
+    Numeric res;
+    if (!to_num(str.data(), str.data() + str.size(), res)) {
+        throw std::invalid_argument{"Could not convert "s +
+                                    std::string(str.data(), str.size())};
+    }
+    return res;
+}
 } // namespace utils

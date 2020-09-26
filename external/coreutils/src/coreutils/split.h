@@ -101,14 +101,19 @@ auto splitn(const std::string& text, const T& sep)
     return gen_tuple<N>(split(text, sep));
 }
 
-template <typename T> std::pair<T, T> split2(const T& text, const T& sep)
+template <typename T, typename S> std::pair<T, T> split2(const T& text, const S& sep)
 {
-    auto it = std::search(begin(text), end(text), begin(sep), end(sep));
-    if (it == end(text))
+    auto it = std::search(std::begin(text), std::end(text), std::begin(sep), std::end(sep));
+    if (it == std::end(text))
         return std::make_pair(text, T());
     auto it2 = it;
-    std::advance(it2, std::distance(begin(sep), end(sep)));
-    return std::make_pair(T(begin(text), it), std::string(it2, end(text)));
+    std::advance(it2, std::distance(std::begin(sep), std::end(sep)));
+    return std::make_pair(T(std::begin(text), it), T(it2, std::end(text)));
+}
+
+template <typename T> std::pair<std::string, std::string> split2(const char* text, const T& sep)
+{
+    return split2<std::string, T>(text, sep);
 }
 
 struct URL
@@ -124,28 +129,26 @@ inline URL parse_url(std::string const& input)
     URL url;
     std::vector<std::string> parts = split(input, "://");
 
-    if(parts.size() != 2)
+    if (parts.size() != 2)
         throw std::exception();
 
     url.protocol = parts[0];
 
     auto slash = parts[1].find_first_of('/');
-    if(slash == std::string::npos) {
+    if (slash == std::string::npos) {
         url.hostname = parts[1];
         return url;
     }
-    url.path = parts[1].substr(slash+1);
+    url.path = parts[1].substr(slash + 1);
     url.hostname = parts[1].substr(0, slash);
 
     auto colon = url.hostname.find_last_of(':');
-    if(colon != std::string::npos) {
-        url.port = std::atoi(url.hostname.substr(colon+1).c_str());
+    if (colon != std::string::npos) {
+        url.port = std::atoi(url.hostname.substr(colon + 1).c_str());
         url.hostname = url.hostname.substr(0, colon);
     }
 
     return url;
-
-}   
-
+}
 
 } // namespace utils

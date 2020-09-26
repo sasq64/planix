@@ -89,7 +89,8 @@ public:
 
     // Reading
 
-    template <typename T> T read() const
+    template <typename T>
+    T read() const
     {
         T t;
         if (fread(&t, 1, sizeof(T), fp) != sizeof(T)) {
@@ -98,7 +99,8 @@ public:
         return t;
     }
 
-    template <typename T> size_t read(T* target, size_t bytes) const noexcept
+    template <typename T>
+    size_t read(T* target, size_t bytes) const noexcept
     {
         return fread(target, 1, bytes, fp);
     }
@@ -131,7 +133,7 @@ public:
             if (c == 0 || c == EOF) {
                 break;
             }
-            data.push_back(c);
+            data.push_back(static_cast<char>(c));
         }
         return std::string(data.begin(), data.end());
     }
@@ -141,7 +143,8 @@ public:
         std::vector<char> lineTarget(10);
         size_t endp = 0;
         while (true) {
-            char* ptr = fgets(&lineTarget[endp], (int)(lineTarget.size() - endp), fp);
+            char* ptr = fgets(&lineTarget[endp],
+                              static_cast<int>(lineTarget.size() - endp), fp);
             if (ptr == nullptr) {
                 if (eof()) {
                     break;
@@ -155,7 +158,7 @@ public:
                 found = true;
                 len--;
             }
-            if (found && ptr[len - 1] == '\r') {
+            if (found && (len > 0) && (ptr[len - 1] == '\r')) {
                 len--;
             }
             ptr[len] = 0;
@@ -188,7 +191,7 @@ public:
         return sz;
     }
 
-    std::vector<uint8_t> readAll() const
+    std::vector<uint8_t> readVector() const
     {
         std::vector<uint8_t> data;
         data.resize(getSize());
@@ -209,7 +212,8 @@ public:
 
     // Writing
 
-    template <typename T> void write(const T& t) const
+    template <typename T>
+    void write(const T& t) const
     {
         if (fwrite(&t, 1, sizeof(T), fp) != sizeof(T)) {
             throw io_exception("Could not write object");
@@ -269,7 +273,8 @@ private:
     FILE* fp = nullptr;
 };
 
-template <bool REFERENCE> class LineReader
+template <bool REFERENCE>
+class LineReader
 {
     friend File;
 

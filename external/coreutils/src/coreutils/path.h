@@ -12,11 +12,6 @@
 #    include <direct.h>
 #endif
 
-#ifdef __unix__
-#    include <cstdlib>
-#    include <limits.h>
-#endif
-
 namespace utils {
 /**
  * A `path` is defined by a set of _segments_ and a flag
@@ -26,6 +21,7 @@ namespace utils {
  * component.
  *
  */
+
 class path
 {
     enum Format
@@ -35,37 +31,41 @@ class path
         Unix
     };
     Format format = Format::Unknown;
-    bool isRelative = true;
+    bool relative_ = true;
     bool hasRootDir = false;
     std::vector<std::string> segments;
-    static std::string& empty_string()
-    {
-        static std::string e = "";
-        return e;
-    }
+    mutable std::string internal_name;
 
     void init(std::string const& name)
     {
+        segments.clear();
+        relative_ = true;
+        hasRootDir = false;
+        format = Format::Unknown;
+        if (name.empty()) {
+            return;
+        }
         size_t start = 0;
-        isRelative = true;
-        if (name[0] == '/') {
+        relative_ = true;
+        if (!name.empty() && name[0] == '/') {
             format = Format::Unix;
             start++;
-            isRelative = false;
-        } else if (name[1] == ':') {
+            relative_ = false;
+        } else if (name.size() > 1 && name[1] == ':') {
             format = Format::Win;
             segments.push_back(name.substr(0, 2));
             hasRootDir = true;
             start += 2;
             if (name[2] == '\\' || name[2] == '/') {
-                isRelative = false;
+                relative_ = false;
                 start++;
             }
         }
         for (size_t i = start; i < name.length(); i++) {
             if (name[i] == '/' || name[i] == '\\') {
-                if (format == Format::Unknown)
+                if (format == Format::Unknown) {
                     format = name[i] == '/' ? Format::Unix : Format::Win;
+                }
                 segments.push_back(name.substr(start, i - start));
                 start = ++i;
             }
@@ -89,8 +89,10 @@ public:
     path(std::string const& name) { init(name); }
     path(const char* name) { init(name); }
 
-    bool is_absolute() const { return !isRelative; }
-    bool is_relative() const { return isRelative; }
+    void set_relative(bool rel) { relative_ = rel; }
+
+    bool is_absolute() const { return !relative_; }
+    bool is_relative() const { return relative_; }
 
     path& operator=(const char* name)
     {
@@ -108,11 +110,12 @@ public:
 
     path& operator/=(path const& p)
     {
-        if (p.is_absolute())
+        if (p.is_absolute()) {
             *this = p;
-        else {
-            if (segment(-1) == "")
+        } else {
+            if (!empty() && segment(-1) == "") {
                 segments.resize(segments.size() - 1);
+            }
             segments.insert(std::end(segments), std::begin(p.segments),
                             std::end(p.segments));
         }
@@ -123,7 +126,7 @@ public:
     path filename() const
     {
         path p = *this;
-        p.isRelative = true;
+        p.relative_ = true;
         if (!empty()) {
             p.segments[0] = segment(-1);
             p.segments.resize(1);
@@ -133,32 +136,37 @@ public:
 
     std::string extension() const
     {
-        if (empty())
+        if (empty()) {
             return "";
+        }
         const auto& filename = segment(-1);
-        auto dot = filename.find_last_of(".");
-        if (dot != std::string::npos)
+        auto dot = filename.find_last_of('.');
+        if (dot != std::string::npos) {
             return filename.substr(dot);
+        }
         return "";
     }
 
     std::string stem() const
     {
-        if (empty())
+        if (empty()) {
             return "";
+        }
         const auto& filename = segment(-1);
-        auto dot = filename.find_last_of(".");
-        if (dot != std::string::npos)
+        auto dot = filename.find_last_of('.');
+        if (dot != std::string::npos) {
             return filename.substr(0, dot);
+        }
         return "";
     }
 
     void replace_extension(std::string const& ext)
     {
-        if (empty())
+        if (empty()) {
             return;
+        }
         auto& filename = segment(-1);
-        auto dot = filename.find_last_of(".");
+        auto dot = filename.find_last_of('.');
         if (dot != std::string::npos) {
             filename = filename.substr(0, dot) + ext;
         }
@@ -167,8 +175,9 @@ public:
     path parent_path() const
     {
         path p = *this;
-        if (!empty())
+        if (!empty()) {
             p.segments.resize(segments.size() - 1);
+        }
         return p;
     }
 
@@ -178,26 +187,30 @@ public:
 
     auto end() const { return segments.end(); }
 
-    std::string string() const
+    std::string& string() const
     {
-        std::string target;
-        auto l = (int)segments.size();
+        internal_name.clear();
+        auto l = static_cast<int>(segments.size());
         int i = 0;
         std::string separator = (format == Format::Win ? "\\" : "/");
-        if (!isRelative) {
-            if (hasRootDir)
-                target = segment(i++);
-            target += separator;
+        if (!relative_) {
+            if (hasRootDir) {
+                internal_name = segment(i++);
+            }
+            internal_name += separator;
         }
         for (; i < l; i++) {
-            target = target + segment(i);
-            if (i != l - 1)
-                target += separator;
+            internal_name = internal_name + segment(i);
+            if (i != l - 1) {
+                internal_name += separator;
+            }
         }
-        return target;
+        return internal_name;
     }
 
-    operator std::string() const { return string(); }
+    char const* c_str() const { return string().c_str(); }
+
+    operator std::string&() const { return string(); }
 
     bool operator==(const char* other) const
     {
@@ -206,7 +219,7 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const path& p)
     {
-        os << (std::string)p;
+        os << std::string(p);
         return os;
     }
 };
@@ -221,6 +234,11 @@ inline bool exists(path const& p)
     struct stat sb;
     return stat(p.string().c_str(), &sb) >= 0;
 }
+inline bool is_dir(path const& p)
+{
+    struct stat sb;
+    return stat(p.string().c_str(), &sb) >= 0 && (sb.st_mode & S_IFDIR);
+}
 
 inline void create_directory(path const& p)
 {
@@ -234,6 +252,7 @@ inline void create_directory(path const& p)
 inline void create_directories(path const& p)
 {
     path dir;
+    dir.set_relative(p.is_relative());
     for (const auto& part : p) {
         dir = dir / part;
         create_directory(dir);
@@ -256,11 +275,13 @@ inline bool copy(path const& source, path const& target)
 inline path absolute(path const& name)
 {
     std::string resolvedPath;
-    char* resolvedPathRaw = new char[PATH_MAX];
+    char* resolvedPathRaw = new char[16384];
+#ifdef _WIN32
+    char* result = _fullpath(resolvedPathRaw, name.string().c_str(), PATH_MAX);
+#else
     char* result = realpath(name.string().c_str(), resolvedPathRaw);
-
-    if (result)
-        resolvedPath = resolvedPathRaw;
+#endif
+    resolvedPath = (result != nullptr) ? resolvedPathRaw : name;
     delete[] resolvedPathRaw;
 
     return path(resolvedPath);
