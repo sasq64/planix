@@ -1,13 +1,13 @@
 
-Parts
+= Planix
 
-*Client*
+== Client
 
 Normally starts from the shell and goes into the background.
 Can write to stdout.
 Connects to the server/broker through MQTT
 
-## Registration
+== Registration
 
 Client looks for `.planix` and gets the _team hash_ from it.
 
@@ -19,20 +19,20 @@ Messages are mostly designed to be one-way, informative.
 Persistent data should be stored in git repo
 
 
-## Messages
+== Messages
 
 <thash>/<user>/<action>/<args>
 
-## Actions
+== Actions
 
-checkin - Flag me as available, not idle.
-touch/<file> - I am working on file
+    checkin - Flag me as available, not idle.
+    touch/<file> - I am working on file
 
-msg/<user> - Private message
+    msg/<user> - Private message
 
 doc/<name> - Here is doc
 
-## Service less functionality
+== Service less functionality
 
 Say things to users
 Online status of users
@@ -50,7 +50,7 @@ subscribe thash/#/status will show all users status
 
 
 
-## Services
+== Services
 
 `chat`
 
@@ -58,7 +58,7 @@ Listens for <thash>/#/say
 Saves 
 
 
-## Message Board
+== Message Board
 
 Special MQTT client
 
@@ -71,5 +71,19 @@ Board will send post to subscribers
 
 
 
+CODE
 
+If server not running, start in background
+
+Server:
+
+Run MQTT thread.
+Put incoming messages in thread safe queue
+Read outgoing messages from other queue
+
+Client:
+
+Talk to sever via pipe
+
+Server does not send anything back, reports via stdout
 
