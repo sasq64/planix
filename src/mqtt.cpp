@@ -48,7 +48,7 @@ void MQTT::publish(std::string const& topic, const void* data, size_t len)
     int rc = mosquitto_publish(mp.get(), nullptr, topic.c_str(), len, data, 1,
                                false);
     if (rc != MOSQ_ERR_SUCCESS) {
-        throw mqtt_exception("publish");
+        throw mqtt_exception(fmt::format("publish: {}", rc));
     }
     fmt::print("Published {}\n", topic);
 }
@@ -77,15 +77,20 @@ MQTT::MQTT(std::string const& id)
 
 MQTT::~MQTT()
 {
+    fmt::print("Stoping\n");
     mosquitto_disconnect(mp.get());
-    mqtt_thread.join();
+    if(mqtt_thread.joinable()) {
+        mqtt_thread.join();
+    }
 }
 
 void MQTT::loop()
 {
     fmt::print("Loop\n");
     mosquitto_loop_forever(mp.get(), 10, 10);
-    mosquitto_disconnect(mp.get());
+    fmt::print("Stopped\n");
+
+    //mosquitto_disconnect(mp.get());
 }
 
 void MQTT::start()
@@ -95,6 +100,8 @@ void MQTT::start()
 
 void MQTT::connect(const std::string& host, int port)
 {
+    //mosquitto_username_pw_set(mp.get(), "arne", "pass");
+
     mosquitto_connect(mp.get(), host.c_str(), port, 10);
 }
 void MQTT::subscribe(const std::string& topic)

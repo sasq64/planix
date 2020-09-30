@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <fmt/core.h>
 #include <sys/stat.h>
+#include <fmt/format.h>
 
 void Server::run_command(const std::string& cmd)
 {
@@ -17,6 +18,19 @@ void Server::run_command(const std::string& cmd)
     handle_incoming();
     fmt::print("{}", cmd);
 }
+
+Server::~Server()
+{
+    fmt::print("Exit\n");
+    if(fifo_fp != nullptr) {
+        fclose(fifo_fp);
+    }
+    if(!fifo_name.empty()) {
+        remove(fifo_name.c_str());
+    }
+    fmt::print("Done\n");
+}
+
 void Server::handle_incoming()
 {
     while(true) {
@@ -30,6 +44,7 @@ void Server::handle_incoming()
 void Server::run(const std::string& command)
 {
     mkfifo(fifo_name.c_str(), 0666);
+    mqtt.start();
     mqtt.connect("localhost");
     run_command(command + "\n");
     std::array<char, 256> line{};
@@ -47,8 +62,9 @@ void Server::run(const std::string& command)
         fclose(fp);
     }
     remove(fifo_name.c_str());
-    exit(0);
-
+    fifo_name = "";
 }
+
 Server::Server(const std::string& fifo) : fifo_name(fifo) {
+    fmt::print("Create {}\n", fifo);
 }

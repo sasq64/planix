@@ -60,7 +60,6 @@ void daemonize()
     signal(SIGTERM, signal_handler);
 }
 
-
 void write_pipe(const char* fifo_name, std::string const& what)
 {
     auto* fp = fopen(fifo_name, "ae");
@@ -83,9 +82,9 @@ static utils::path findPlanix()
 
 void run_server(std::string const& fifo_name, std::string const& cmd)
 {
-   daemonize(); // Parent pid exits here
-   Server server{fifo_name};
-   server.run(cmd);
+    daemonize(); // Parent pid exits here
+    Server server{fifo_name};
+    server.run(cmd);
 }
 
 static void err(std::string_view const& msg)

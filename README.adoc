@@ -87,3 +87,12 @@ Talk to sever via pipe
 
 Server does not send anything back, reports via stdout
 
+
+== Git authentication ==
+
+Idea: If a user has write access to the git repo containing the .planix
+file, he will get access to server
+
+Add user/hash to password-file and PUSH
+
+

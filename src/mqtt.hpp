@@ -1,3 +1,5 @@
+#pragma once
+
 #include "locking_queue.h"
 
 #include <cstring>
