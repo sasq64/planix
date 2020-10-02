@@ -16,9 +16,11 @@ class Server
     void handle_incoming();
 
 public:
-    explicit Server(std::string const& fifo);
+    explicit Server(std::string const& fifo, std::string const &key);
     ~Server();
     void run_command(std::string const& cmd);
     void run(std::string const& command);
+
+    static void write_pipe(std::string const& fifo_name, std::string const& what);
 };
 

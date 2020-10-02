@@ -39,13 +39,13 @@ void MQTT::connect_callback(int rc)
 void MQTT::message_callback(const mosquitto_message& msg)
 {
     fmt::print("Message {}\n", msg.topic);
-    messages.enqueue(Msg{msg.topic, static_cast<uint8_t*>(msg.payload),
+    messages.enqueue(Msg{msg.topic, static_cast<byte*>(msg.payload),
                          static_cast<size_t>(msg.payloadlen)});
 }
 
 void MQTT::publish(std::string const& topic, const void* data, size_t len)
 {
-    int rc = mosquitto_publish(mp.get(), nullptr, topic.c_str(), len, data, 1,
+    int rc = mosquitto_publish(mp.get(), nullptr, topic.c_str(), len, data, 2,
                                false);
     if (rc != MOSQ_ERR_SUCCESS) {
         throw mqtt_exception(fmt::format("publish: {}", rc));
@@ -106,7 +106,7 @@ void MQTT::connect(const std::string& host, int port)
 }
 void MQTT::subscribe(const std::string& topic)
 {
-    mosquitto_subscribe(mp.get(), nullptr, topic.c_str(), 1);
+    mosquitto_subscribe(mp.get(), nullptr, topic.c_str(), 2);
 }
 MQTT::Msg MQTT::pop_message()
 {

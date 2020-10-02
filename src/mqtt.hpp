@@ -3,11 +3,14 @@
 #include "locking_queue.h"
 
 #include <cstring>
+#include <cstddef>
 #include <memory>
 #include <thread>
 #include <vector>
 
 struct mosquitto;
+
+using std::byte;
 
 class mqtt_exception : public std::exception
 {
@@ -25,11 +28,19 @@ class MQTT
     struct Msg
     {
         Msg() = default;
-        Msg(const char* t, uint8_t* d, size_t len) : topic{t}, data{d, d + len}
+        Msg(const char* t, byte* d, size_t len) : topic{t}, data{d, d + len}
         {}
         explicit operator bool() const { return !topic.empty(); }
         std::string topic;
-        std::vector<uint8_t> data;
+        std::vector<byte> data;
+        std::string text() const { 
+            std::string result;
+            // TODO: UTF8
+            for(auto const& c : data) {
+                result += std::to_integer<char>(c);
+            }
+            return result;
+        }
     };
 
     int lib_rc;

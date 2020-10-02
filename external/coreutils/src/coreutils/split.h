@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -12,18 +13,20 @@ namespace utils {
 class StringSplit
 {
     std::string source;
-    std::vector<char*> pointers;
+    std::vector<std::string_view> views;
     char* ptr;
     const int minSplits = -1;
 
     void split(const char delim)
     {
         while (true) {
-            pointers.push_back(ptr);
-            ptr = strchr(ptr, delim);
-            if (ptr == nullptr)
+            auto* next = strchr(ptr, delim);
+            if (next == nullptr) {
+                views.emplace_back(ptr, strlen(ptr));
                 break;
-            *ptr++ = 0;
+            }
+            views.emplace_back(ptr, next - ptr);
+            ptr = next+1;
         }
     }
 
@@ -31,12 +34,14 @@ class StringSplit
     {
         const auto dz = strlen(delim);
         while (true) {
-            pointers.push_back(ptr);
-            ptr = strstr(ptr, delim);
-            if (ptr == nullptr)
+            auto* next = strstr(ptr, delim);
+            if (next == nullptr) {
+                views.emplace_back(ptr, strlen(ptr));
                 break;
-            *ptr = 0;
-            ptr += dz;
+            }
+            views.emplace_back(ptr, next - ptr);
+            ptr = next + dz;
+
         }
     }
 
@@ -55,27 +60,28 @@ public:
         split(delim);
     }
 
-    size_t size() const { return pointers.size(); }
-    auto begin() const { return pointers.begin(); }
-    auto end() const { return pointers.end(); }
+    size_t size() const { return views.size(); }
+    auto begin() const { return views.begin(); }
+    auto end() const { return views.end(); }
 
-    char const* operator[](size_t n) const
+    std::string_view operator[](size_t n) const
     {
-        return n < size() ? pointers[n] : nullptr;
+        return views[n];
     }
+
     std::string getString(size_t n) const
     {
         static std::string empty;
-        return n < size() ? std::string(pointers[n]) : empty;
+        return n < size() ? std::string(views[n]) : empty;
     }
     operator bool() const { return minSplits < 0 || (int)size() >= minSplits; }
 
-    operator std::vector<std::string>() const
-    {
-        std::vector<std::string> result;
-        std::copy(pointers.begin(), pointers.end(), std::back_inserter(result));
-        return result;
-    }
+    /* operator std::vector<std::string>() const */
+    /* { */
+    /*     std::vector<std::string> result; */
+    /*     std::copy(views.begin(), views.end(), std::back_inserter(result)); */
+    /*     return result; */
+    /* } */
 };
 
 template <typename T, typename S>
@@ -90,7 +96,8 @@ auto gen_tuple_impl(const StringSplit& ss, std::index_sequence<Is...>)
     return std::make_tuple(ss.getString(Is)...);
 }
 
-template <size_t N> auto gen_tuple(const StringSplit& ss)
+template <size_t N>
+auto gen_tuple(const StringSplit& ss)
 {
     return gen_tuple_impl(ss, std::make_index_sequence<N>{});
 }
@@ -101,17 +108,19 @@ auto splitn(const std::string& text, const T& sep)
     return gen_tuple<N>(split(text, sep));
 }
 
-template <typename T, typename S> std::pair<T, T> split2(const T& text, const S& sep)
+template <typename T, typename S>
+std::pair<T, T> split2(const T& text, const S& sep)
 {
-    auto it = std::search(std::begin(text), std::end(text), std::begin(sep), std::end(sep));
-    if (it == std::end(text))
-        return std::make_pair(text, T());
+    auto it = std::search(std::begin(text), std::end(text), std::begin(sep),
+                          std::end(sep));
+    if (it == std::end(text)) return std::make_pair(text, T());
     auto it2 = it;
     std::advance(it2, std::distance(std::begin(sep), std::end(sep)));
     return std::make_pair(T(std::begin(text), it), T(it2, std::end(text)));
 }
 
-template <typename T> std::pair<std::string, std::string> split2(const char* text, const T& sep)
+template <typename T>
+std::pair<std::string, std::string> split2(const char* text, const T& sep)
 {
     return split2<std::string, T>(text, sep);
 }
@@ -127,10 +136,9 @@ struct URL
 inline URL parse_url(std::string const& input)
 {
     URL url;
-    std::vector<std::string> parts = split(input, "://");
+    auto parts = split(input, "://");
 
-    if (parts.size() != 2)
-        throw std::exception();
+    if (parts.size() != 2) throw std::exception();
 
     url.protocol = parts[0];
 

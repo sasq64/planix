@@ -21,14 +21,17 @@ Persistent data should be stored in git repo
 
 == Messages
 
-<thash>/<user>/<action>/<args>
+`<thash>/<target>/<action>/<args>`
 
 == Actions
 
-    checkin - Flag me as available, not idle.
+    online - Flag me as available, not idle.
     touch/<file> - I am working on file
 
-    msg/<user> - Private message
+    <group>/say
+    <user>/say - Private message
+
+    <board>/post
 
 doc/<name> - Here is doc
 

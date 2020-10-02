@@ -16,10 +16,10 @@ SCENARIO("datastore")
         std::array<MQTT, 2> mqtt;
         WHEN("we connect them to the broker")
         {
-            mqtt[0].start();
-            mqtt[1].start();
             mqtt[0].connect("localhost");
             mqtt[1].connect("localhost");
+            mqtt[0].start();
+            mqtt[1].start();
 
             while ((!mqtt[0].is_connected()) || (!mqtt[1].is_connected())) {
                 std::this_thread::sleep_for(100ms);

@@ -80,12 +80,6 @@ static utils::path findPlanix()
     return {};
 }
 
-void run_server(std::string const& fifo_name, std::string const& cmd)
-{
-    daemonize(); // Parent pid exits here
-    Server server{fifo_name};
-    server.run(cmd);
-}
 
 static void err(std::string_view const& msg)
 {
@@ -118,7 +112,9 @@ int main(int argc, const char* argv[])
 
     struct stat ss; // NOLINT
     if (stat(fifo_name.c_str(), &ss) == -1) {
-        run_server(fifo_name, argv[1]);
+        daemonize(); // Parent pid exits here
+        Server server{fifo_name, key};
+        server.run(argv[1]);
     } else {
         write_pipe(fifo_name.c_str(), argv[1]);
     }
